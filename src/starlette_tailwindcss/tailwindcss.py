@@ -1,3 +1,4 @@
+# ruff: noqa: A002
 """Tailwind CSS CLI integration for Starlette applications."""
 
 from __future__ import annotations
@@ -27,14 +28,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-APP_NAME = "starlette-tailwindcss"
-RELEASE_BASE_URL = "https://github.com/tailwindlabs/tailwindcss/releases/download"
-DEFAULT_BIN_NAME = "tailwindcss"
-PROCESS_STOP_TIMEOUT = 5.0
+_APP_NAME = "starlette-tailwindcss"
+_RELEASE_BASE_URL = "https://github.com/tailwindlabs/tailwindcss/releases/download"
+_DEFAULT_BIN_NAME = "tailwindcss"
+_PROCESS_STOP_TIMEOUT = 5.0
 
 
 @dataclass(frozen=True, slots=True)
-class Target:
+class _Target:
     """Resolved binary names for the current platform."""
 
     asset_name: str
@@ -42,7 +43,7 @@ class Target:
     binary_name: str
 
 
-def normalize_machine(machine: str) -> str:
+def _normalize_machine(machine: str) -> str:
     """Normalize platform machine names to Tailwind release names."""
     value = machine.lower()
     if value in {"x86_64", "amd64"}:
@@ -53,35 +54,35 @@ def normalize_machine(machine: str) -> str:
     raise RuntimeError(msg)
 
 
-def is_musl() -> bool:
+def _is_musl() -> bool:
     """Return `True` when the current Linux libc is musl."""
     libc_name, _ = platform.libc_ver()
     return libc_name.lower() == "musl"
 
 
-def target_platform() -> Target:
+def _target_platform() -> _Target:
     """Build the Tailwind release target for the current platform."""
     system = platform.system().lower()
-    arch = normalize_machine(platform.machine())
+    arch = _normalize_machine(platform.machine())
 
     if system == "linux":
-        suffix = "-musl" if is_musl() else ""
+        suffix = "-musl" if _is_musl() else ""
         asset_name = f"tailwindcss-linux-{arch}{suffix}"
-        return Target(
+        return _Target(
             asset_name=asset_name,
             cache_name=asset_name,
             binary_name=asset_name,
         )
     if system == "darwin":
         asset_name = f"tailwindcss-macos-{arch}"
-        return Target(
+        return _Target(
             asset_name=asset_name,
             cache_name=f"macos-{arch}",
             binary_name=asset_name,
         )
     if system == "windows":
         asset_name = "tailwindcss-windows-x64.exe"
-        return Target(
+        return _Target(
             asset_name=asset_name,
             cache_name="windows-x64",
             binary_name=asset_name,
@@ -91,7 +92,7 @@ def target_platform() -> Target:
     raise RuntimeError(msg)
 
 
-def sha256(path: Path) -> str:
+def _sha256(path: Path) -> str:
     """Calculate a SHA-256 digest for a file."""
     digest = hashlib.sha256()
     with path.open("rb") as file:
@@ -100,13 +101,13 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def read_url(url: str) -> bytes:
+def _read_url(url: str) -> bytes:
     """Read the full contents of a URL."""
     with urllib.request.urlopen(url) as response:  # noqa: S310
         return response.read()
 
 
-def download_to_path(url: str, path: Path) -> None:
+def _download_to_path(url: str, path: Path) -> None:
     """Download a URL into a file path atomically."""
     path.parent.mkdir(parents=True, exist_ok=True)
     with (
@@ -123,7 +124,7 @@ def download_to_path(url: str, path: Path) -> None:
     temp_path.replace(path)
 
 
-def parse_checksum_manifest(content: str) -> dict[str, str]:
+def _parse_checksum_manifest(content: str) -> dict[str, str]:
     """Parse Tailwind's checksum manifest into a mapping."""
     checksums: dict[str, str] = {}
     for raw_line in content.splitlines():
@@ -135,7 +136,7 @@ def parse_checksum_manifest(content: str) -> dict[str, str]:
     return checksums
 
 
-def ensure_executable(path: Path) -> None:
+def _ensure_executable(path: Path) -> None:
     """Mark a file executable for the current user."""
     mode = path.stat().st_mode
     path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
@@ -165,7 +166,7 @@ class TailwindCSS:
     def __init__(
         self,
         *,
-        input: str | os.PathLike[str],  # noqa: A002
+        input: str | os.PathLike[str],
         output: str | os.PathLike[str],
         bin_path: str | os.PathLike[str] | None = None,
         version: str | None = None,
@@ -181,29 +182,67 @@ class TailwindCSS:
         self.version = version
 
     def setup(self, app: Starlette) -> None:
-        """Wrap the app lifespan so Tailwind starts and stops with the app."""
-        if not app.debug:
-            return
-
+        """Wrap the app lifespan so Tailwind builds on startup."""
         original_lifespan = app.router.lifespan_context
 
         @asynccontextmanager
         async def lifespan(inner_app: Starlette) -> AsyncIterator[object]:
             async with original_lifespan(inner_app) as state:
-                process, stream_tasks = await self.startup()
+                binary = await self._resolve_binary()
+                await self._build(binary)
+
+                watch_process: asyncio.subprocess.Process | None = None
+                stream_tasks: list[asyncio.Task[None]] = []
+                if inner_app.debug:
+                    watch_process, stream_tasks = await self._spawn_watch(binary)
+
                 try:
                     yield state
                 finally:
-                    await self.shutdown(process, stream_tasks)
+                    await self._shutdown_watch(watch_process, stream_tasks)
 
         router = cast("Any", app.router)
         router.lifespan_context = cast("Any", lifespan)
 
-    async def startup(
+    async def _build(self, binary: Path) -> None:
+        """Run a one-time Tailwind build."""
+        logger.info(
+            "Building Tailwind CSS output: %s build -i %s -o %s",
+            binary,
+            self.input,
+            self.output,
+        )
+        self.output.parent.mkdir(parents=True, exist_ok=True)
+        process = await asyncio.create_subprocess_exec(
+            str(binary),
+            "build",
+            "-i",
+            str(self.input),
+            "-o",
+            str(self.output),
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        stream_tasks: list[asyncio.Task[None]] = []
+        if process.stdout is not None:
+            stream_tasks.append(
+                asyncio.create_task(self._forward_stream(process.stdout, logging.INFO))
+            )
+        if process.stderr is not None:
+            stream_tasks.append(
+                asyncio.create_task(self._forward_stream(process.stderr, logging.DEBUG))
+            )
+        return_code = await process.wait()
+        await self._drain_stream_tasks(stream_tasks)
+        if return_code != 0:
+            msg = f"Tailwind CSS build failed with exit code {return_code}"
+            raise RuntimeError(msg)
+
+    async def _spawn_watch(
         self,
+        binary: Path,
     ) -> tuple[asyncio.subprocess.Process, list[asyncio.Task[None]]]:
         """Start the Tailwind watch process and stream its output."""
-        binary = await self.resolve_binary()
         logger.info(
             "Spawning Tailwind CSS CLI in background: %s -i %s -o %s --watch",
             binary,
@@ -224,29 +263,36 @@ class TailwindCSS:
         stream_tasks: list[asyncio.Task[None]] = []
         if process.stdout is not None:
             stream_tasks.append(
-                asyncio.create_task(self.forward_stream(process.stdout, logging.INFO))
+                asyncio.create_task(self._forward_stream(process.stdout, logging.INFO))
             )
         if process.stderr is not None:
             stream_tasks.append(
-                asyncio.create_task(self.forward_stream(process.stderr, logging.DEBUG))
+                asyncio.create_task(self._forward_stream(process.stderr, logging.DEBUG))
             )
         return process, stream_tasks
 
-    async def shutdown(
+    async def _shutdown_watch(
         self,
-        process: asyncio.subprocess.Process,
+        process: asyncio.subprocess.Process | None,
         stream_tasks: list[asyncio.Task[None]],
     ) -> None:
-        """Stop the Tailwind process and cancel output forwarding tasks."""
+        """Stop the Tailwind watch process and cancel output tasks."""
+        if process is None:
+            return
+
         logger.info("Killing spawned Tailwind CSS CLI process: pid=%s", process.pid)
         if process.returncode is None:
             process.terminate()
             try:
-                await asyncio.wait_for(process.wait(), timeout=PROCESS_STOP_TIMEOUT)
+                await asyncio.wait_for(process.wait(), timeout=_PROCESS_STOP_TIMEOUT)
             except TimeoutError:
                 process.kill()
                 await process.wait()
 
+        await self._drain_stream_tasks(stream_tasks)
+
+    async def _drain_stream_tasks(self, stream_tasks: list[asyncio.Task[None]]) -> None:
+        """Cancel process stream forwarders and wait for them to finish."""
         for task in stream_tasks:
             if not task.done():
                 task.cancel()
@@ -254,7 +300,7 @@ class TailwindCSS:
             with contextlib.suppress(asyncio.CancelledError):
                 await task
 
-    async def forward_stream(self, stream: asyncio.StreamReader, level: int) -> None:
+    async def _forward_stream(self, stream: asyncio.StreamReader, level: int) -> None:
         """Forward a process stream into the configured logger."""
         while True:
             line = await stream.readline()
@@ -264,13 +310,13 @@ class TailwindCSS:
             if message:
                 logger.log(level, "%s", message)
 
-    async def resolve_binary(self) -> Path:
+    async def _resolve_binary(self) -> Path:
         """Return the binary to execute, resolving local or downloaded input."""
         if self.version is None:
-            return self.resolve_local_binary()
-        return await asyncio.to_thread(self.download_binary)
+            return self._resolve_local_binary()
+        return await asyncio.to_thread(self._download_binary)
 
-    def resolve_local_binary(self) -> Path:
+    def _resolve_local_binary(self) -> Path:
         """Resolve a local Tailwind binary from `bin_path` or `PATH`."""
         if self.bin_path is not None:
             candidate = self.bin_path
@@ -282,29 +328,29 @@ class TailwindCSS:
             msg = f"Tailwind CSS binary not found: {candidate}"
             raise FileNotFoundError(msg)
 
-        resolved = shutil.which(DEFAULT_BIN_NAME)
+        resolved = shutil.which(_DEFAULT_BIN_NAME)
         if resolved is None:
-            msg = f"`{DEFAULT_BIN_NAME}` was not found on PATH"
+            msg = f"`{_DEFAULT_BIN_NAME}` was not found on PATH"
             raise FileNotFoundError(msg)
         return Path(resolved)
 
-    def download_binary(self) -> Path:
+    def _download_binary(self) -> Path:
         """Download, verify, and cache the Tailwind binary for this version."""
         if self.version is None:
             msg = "A release version is required to download Tailwind CSS"
             raise RuntimeError(msg)
 
-        target = target_platform()
-        cache_root = Path(user_cache_dir(APP_NAME))
+        target = _target_platform()
+        cache_root = Path(user_cache_dir(_APP_NAME))
         binary_path = cache_root / self.version / target.cache_name / target.binary_name
         if binary_path.exists():
-            ensure_executable(binary_path)
+            _ensure_executable(binary_path)
             return binary_path
 
-        release_base = f"{RELEASE_BASE_URL}/{self.version}"
+        release_base = f"{_RELEASE_BASE_URL}/{self.version}"
         try:
-            manifest = parse_checksum_manifest(
-                read_url(f"{release_base}/sha256sums.txt").decode("utf-8"),
+            manifest = _parse_checksum_manifest(
+                _read_url(f"{release_base}/sha256sums.txt").decode("utf-8"),
             )
         except urllib.error.URLError as exc:
             msg = (
@@ -321,11 +367,11 @@ class TailwindCSS:
 
         asset_url = f"{release_base}/{target.asset_name}"
         try:
-            download_to_path(asset_url, binary_path)
+            _download_to_path(asset_url, binary_path)
         except urllib.error.URLError as exc:
             msg = f"Failed to download Tailwind CSS binary for {self.version}"
             raise RuntimeError(msg) from exc
-        actual_checksum = sha256(binary_path)
+        actual_checksum = _sha256(binary_path)
         if actual_checksum != expected_checksum:
             binary_path.unlink(missing_ok=True)
             msg = (
@@ -334,5 +380,5 @@ class TailwindCSS:
             )
             raise RuntimeError(msg)
 
-        ensure_executable(binary_path)
+        _ensure_executable(binary_path)
         return binary_path
