@@ -16,15 +16,13 @@ import urllib.request
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, cast, overload
+from typing import TYPE_CHECKING, overload
 
 from platformdirs import user_cache_dir
 
 if TYPE_CHECKING:
     import os
     from collections.abc import AsyncIterator
-
-    from starlette.applications import Starlette
 
 logger = logging.getLogger(__name__)
 
@@ -143,7 +141,7 @@ def _ensure_executable(path: Path) -> None:
 
 
 class TailwindCSS:
-    """Manage Tailwind CSS CLI watch mode from a Starlette lifespan."""
+    """Manage Tailwind CSS CLI build and watch mode."""
 
     @overload
     def __init__(
@@ -181,30 +179,23 @@ class TailwindCSS:
         self.bin_path = Path(bin_path).expanduser() if bin_path is not None else None
         self.version = version
 
-    def setup(self, app: Starlette) -> None:
-        """Wrap the app lifespan so Tailwind builds on startup."""
-        original_lifespan = app.router.lifespan_context
+    @asynccontextmanager
+    async def build(self, *, watch: bool = False) -> AsyncIterator[None]:
+        """Build Tailwind CSS once and optionally watch for changes."""
+        binary = await self._resolve_binary()
+        await self._build_once(binary)
 
-        @asynccontextmanager
-        async def lifespan(inner_app: Starlette) -> AsyncIterator[object]:
-            async with original_lifespan(inner_app) as state:
-                binary = await self._resolve_binary()
-                await self._build(binary)
+        watch_process: asyncio.subprocess.Process | None = None
+        stream_tasks: list[asyncio.Task[None]] = []
+        if watch:
+            watch_process, stream_tasks = await self._spawn_watch(binary)
 
-                watch_process: asyncio.subprocess.Process | None = None
-                stream_tasks: list[asyncio.Task[None]] = []
-                if inner_app.debug:
-                    watch_process, stream_tasks = await self._spawn_watch(binary)
+        try:
+            yield
+        finally:
+            await self._shutdown_watch(watch_process, stream_tasks)
 
-                try:
-                    yield state
-                finally:
-                    await self._shutdown_watch(watch_process, stream_tasks)
-
-        router = cast("Any", app.router)
-        router.lifespan_context = cast("Any", lifespan)
-
-    async def _build(self, binary: Path) -> None:
+    async def _build_once(self, binary: Path) -> None:
         """Run a one-time Tailwind build."""
         logger.info(
             "Building Tailwind CSS output: %s build -i %s -o %s",
