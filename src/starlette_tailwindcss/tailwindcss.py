@@ -149,30 +149,18 @@ class TailwindCSS:
     def __init__(
         self,
         *,
-        input: str | os.PathLike[str],
-        output: str | os.PathLike[str],
         bin_path: str | os.PathLike[str],
-        version: None = None,
+        input: str | os.PathLike[str],
+        output: str | os.PathLike[str],
     ) -> None: ...
 
     @overload
     def __init__(
         self,
         *,
-        input: str | os.PathLike[str],
-        output: str | os.PathLike[str],
-        bin_path: None = None,
         version: str,
-    ) -> None: ...
-
-    @overload
-    def __init__(
-        self,
-        *,
         input: str | os.PathLike[str],
         output: str | os.PathLike[str],
-        bin_path: str | os.PathLike[str] | None = None,
-        version: str | None = None,
     ) -> None: ...
 
     def __init__(
