@@ -1,0 +1,57 @@
+{
+    "file_scan_exclusions": [
+        // Python
+        "**/__pycache__",
+        "**/.ruff_cache",
+        "**/.pytest_cache",
+
+        // Default values
+        "**/.git",
+        "**/.svn",
+        "**/.hg",
+        "**/.jj",
+        "**/CVS",
+        "**/.DS_Store",
+        "**/Thumbs.db",
+        "**/.classpath",
+        "**/.settings"
+    ],
+    "languages": {
+        "Python": {
+            "language_servers": ["ruff", "ty"]
+        },
+        "CSS": {
+            "language_servers": [
+                "tailwindcss-intellisense-css",
+                "!vscode-css-language-server",
+                "..."
+            ]
+        }
+    },
+    "lsp": {
+        "ruff": {
+            "binary": {
+                "path": ".venv/bin/ruff",
+                "arguments": ["server"]
+            },
+            "settings": {
+                "diagnosticMode": "workspace"
+            },
+            "initialization_options": {
+                "logLevel": "debug"
+            }
+        },
+        "ty": {
+            "binary": {
+                "path": ".venv/bin/ty",
+                "arguments": ["server"]
+            },
+            "settings": {
+                "diagnosticMode": "workspace"
+            },
+            "initialization_options": {
+                "logLevel": "debug"
+            }
+        }
+    }
+}
