@@ -1,2 +1,5 @@
-def hello() -> str:
-    return "Hello from starlette-tailwindcss!"
+"""Starlette integration for the Tailwind CSS CLI."""
+
+from .tailwindcss import TailwindCSS
+
+__all__ = ["TailwindCSS"]
