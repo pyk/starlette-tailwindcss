@@ -30,7 +30,6 @@ logger = logging.getLogger(__name__)
 APP_NAME = "starlette-tailwindcss"
 RELEASE_BASE_URL = "https://github.com/tailwindlabs/tailwindcss/releases/download"
 DEFAULT_BIN_NAME = "tailwindcss"
-STREAM_PREFIX = "[tailwindcss]"
 PROCESS_STOP_TIMEOUT = 5.0
 
 
@@ -205,6 +204,12 @@ class TailwindCSS:
     ) -> tuple[asyncio.subprocess.Process, list[asyncio.Task[None]]]:
         """Start the Tailwind watch process and stream its output."""
         binary = await self.resolve_binary()
+        logger.info(
+            "Spawning Tailwind CSS CLI in background: %s -i %s -o %s --watch",
+            binary,
+            self.input,
+            self.output,
+        )
         self.output.parent.mkdir(parents=True, exist_ok=True)
         process = await asyncio.create_subprocess_exec(
             str(binary),
@@ -233,6 +238,7 @@ class TailwindCSS:
         stream_tasks: list[asyncio.Task[None]],
     ) -> None:
         """Stop the Tailwind process and cancel output forwarding tasks."""
+        logger.info("Killing spawned Tailwind CSS CLI process: pid=%s", process.pid)
         if process.returncode is None:
             process.terminate()
             try:
@@ -256,7 +262,7 @@ class TailwindCSS:
                 return
             message = line.decode("utf-8", errors="replace").rstrip()
             if message:
-                logger.log(level, "%s %s", STREAM_PREFIX, message)
+                logger.log(level, "%s", message)
 
     async def resolve_binary(self) -> Path:
         """Return the binary to execute, resolving local or downloaded input."""
