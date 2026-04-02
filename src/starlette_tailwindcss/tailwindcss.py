@@ -223,7 +223,7 @@ class TailwindCSS:
             )
         if process.stderr is not None:
             stream_tasks.append(
-                asyncio.create_task(self.forward_stream(process.stderr, logging.ERROR))
+                asyncio.create_task(self.forward_stream(process.stderr, logging.DEBUG))
             )
         return process, stream_tasks
 
