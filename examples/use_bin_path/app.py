@@ -33,7 +33,7 @@ styles = Path(__file__).parent / "globals.css"
 
 templates = Jinja2Templates(directory=templates_dir)
 tailwind = TailwindCSS(
-    bin_path="/usr/local/bin/tailwindcss-random",
+    bin_path="/usr/local/bin/tailwindcss",
     input=styles,
     output=static_dir / "css" / "output.css",
 )
