@@ -1,0 +1,64 @@
+"""Example that uses a locally installed tailwindcss CLI."""
+
+from __future__ import annotations
+
+import logging
+import sys
+from pathlib import Path
+from typing import TYPE_CHECKING
+
+import uvicorn
+from starlette.applications import Starlette
+from starlette.routing import Mount, Route
+from starlette.staticfiles import StaticFiles
+from starlette.templating import Jinja2Templates
+
+from starlette_tailwindcss import TailwindCSS
+
+if TYPE_CHECKING:
+    from starlette.requests import Request
+    from starlette.responses import HTMLResponse
+
+# Enable debug logging to stderr
+logging.basicConfig(
+    level=logging.DEBUG,
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    stream=sys.stderr,
+)
+
+templates_dir = Path(__file__).parent / "templates"
+static_dir = Path(__file__).parent / "static"
+styles = Path(__file__).parent / "globals.css"
+
+templates = Jinja2Templates(directory=templates_dir)
+tailwind = TailwindCSS(
+    bin_path="/usr/local/bin/tailwindcss-random",
+    input=styles,
+    output=static_dir / "css" / "output.css",
+)
+
+
+async def homepage(request: Request) -> HTMLResponse:
+    """Homepage handler."""
+    return templates.TemplateResponse(request, "index.html")
+
+
+routes = [
+    Mount(
+        "/static",
+        app=StaticFiles(directory=static_dir),
+        name="static",
+    ),
+    Route("/", homepage),
+]
+
+app = Starlette(
+    debug=True,
+    routes=routes,
+)
+
+tailwind.setup(app)
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=3000, log_config=None)  # noqa: S104
