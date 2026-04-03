@@ -9,7 +9,7 @@ import pytest
 from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
-from starlette_tailwindcss import TailwindCSS, installer
+from starlette_tailwindcss import installer, tailwind
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -32,22 +32,19 @@ def test_auto_install_checksum_manifest_not_found(
     monkeypatch.setattr(installer, "_read_url", raise_http_404)
     monkeypatch.setattr(installer, "user_cache_dir", fail_user_cache_dir)
 
-    tailwind = TailwindCSS(
-        version="random-version",
-        cache_dir=tmp_path,
-        input=tmp_path / "input.css",
-        output=tmp_path / "output.css",
-    )
-
     @asynccontextmanager
     async def lifespan(app: Starlette) -> AsyncIterator[None]:
-        async with tailwind.build(watch=app.debug):
+        async with tailwind(
+            watch=app.debug,
+            version="random-version",
+            cache_dir=tmp_path,
+            input=tmp_path / "input.css",
+            output=tmp_path / "output.css",
+        ):
             yield
 
     app = Starlette(debug=True, lifespan=lifespan)
-    expected_error = (
-        "Failed to download Tailwind CSS checksum manifest for random-version"
-    )
+    expected_error = "install manifest download failed: random-version"
 
     with (
         pytest.raises(

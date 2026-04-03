@@ -4,18 +4,19 @@ from __future__ import annotations
 
 import hashlib
 import logging
+from contextlib import asynccontextmanager
 from types import SimpleNamespace, TracebackType
 from typing import TYPE_CHECKING, Self
 
 import pytest
+from starlette.applications import Starlette
 from starlette.testclient import TestClient
 
-from starlette_tailwindcss import TailwindCSS, installer
+from starlette_tailwindcss import installer, tailwind
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
     from pathlib import Path
-
-    from tests.conftest import StarletteAppFactory
 
 
 class FakeResponse:
@@ -59,7 +60,6 @@ def _expect_contains(haystack: str, needle: str) -> None:
 def test_auto_install_uses_cached_binary(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
-    starlette_app_factory: StarletteAppFactory,
     tmp_path: Path,
 ) -> None:
     """Log the cached binary when the version is already installed."""
@@ -84,26 +84,27 @@ def test_auto_install_uses_cached_binary(
     monkeypatch.setattr(installer.urllib.request, "urlopen", fail_urlopen)
     caplog.set_level(logging.DEBUG, logger=installer.__name__)
 
-    tailwind = TailwindCSS(
-        version=version,
-        cache_dir=tmp_path,
-        input=tmp_path / "input.css",
-        output=tmp_path / "output.css",
-    )
+    @asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        async with tailwind(
+            watch=app.debug,
+            version=version,
+            cache_dir=tmp_path,
+            input=tmp_path / "input.css",
+            output=tmp_path / "output.css",
+        ):
+            yield
 
-    with TestClient(starlette_app_factory(tailwind, debug=True)):
+    with TestClient(Starlette(debug=True, lifespan=lifespan)):
         pass
 
-    _expect_contains(
-        caplog.text, f"Starting Tailwind CSS auto-install: version={version}"
-    )
-    _expect_contains(caplog.text, f"Using cached Tailwind CSS binary: {binary_path}")
+    _expect_contains(caplog.text, f"install start version={version}")
+    _expect_contains(caplog.text, f"install cached: {binary_path}")
 
 
 def test_auto_install_logs_download_progress(
     caplog: pytest.LogCaptureFixture,
     monkeypatch: pytest.MonkeyPatch,
-    starlette_app_factory: StarletteAppFactory,
     tmp_path: Path,
 ) -> None:
     """Log download progress in 25 percent increments for a fresh install."""
@@ -146,25 +147,27 @@ def test_auto_install_logs_download_progress(
     monkeypatch.setattr(installer.urllib.request, "urlopen", fake_urlopen)
     caplog.set_level(logging.DEBUG, logger=installer.__name__)
 
-    tailwind = TailwindCSS(
-        version=version,
-        cache_dir=tmp_path,
-        input=tmp_path / "input.css",
-        output=tmp_path / "output.css",
-    )
+    @asynccontextmanager
+    async def lifespan(app: Starlette) -> AsyncIterator[None]:
+        async with tailwind(
+            watch=app.debug,
+            version=version,
+            cache_dir=tmp_path,
+            input=tmp_path / "input.css",
+            output=tmp_path / "output.css",
+        ):
+            yield
 
-    with TestClient(starlette_app_factory(tailwind, debug=True)):
+    with TestClient(Starlette(debug=True, lifespan=lifespan)):
         pass
 
     binary_path = tmp_path / version / target.cache_name / target.binary_name
     assert binary_path.read_bytes() == asset_bytes
-    _expect_contains(
-        caplog.text, f"Starting Tailwind CSS auto-install: version={version}"
-    )
-    _expect_contains(caplog.text, f"Tailwind CSS binary cache miss: {binary_path}")
-    _expect_contains(caplog.text, "Installing Tailwind CSS binary: 0%")
-    _expect_contains(caplog.text, "Installing Tailwind CSS binary: 25%")
-    _expect_contains(caplog.text, "Installing Tailwind CSS binary: 50%")
-    _expect_contains(caplog.text, "Installing Tailwind CSS binary: 75%")
-    _expect_contains(caplog.text, "Installing Tailwind CSS binary: 100%")
-    _expect_contains(caplog.text, f"Finished Tailwind CSS auto-install: {binary_path}")
+    _expect_contains(caplog.text, f"install start version={version}")
+    _expect_contains(caplog.text, f"install cache miss: {binary_path}")
+    _expect_contains(caplog.text, "install binary: 0%")
+    _expect_contains(caplog.text, "install binary: 25%")
+    _expect_contains(caplog.text, "install binary: 50%")
+    _expect_contains(caplog.text, "install binary: 75%")
+    _expect_contains(caplog.text, "install binary: 100%")
+    _expect_contains(caplog.text, f"install done: {binary_path}")
