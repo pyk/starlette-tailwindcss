@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING, overload
 
-from .installer import download_binary
+from starlette_tailwindcss.installer import install
 
 if TYPE_CHECKING:
     import os
@@ -197,7 +197,7 @@ class TailwindCSS:
         """Return the binary to execute, resolving local or downloaded input."""
         if self.version is None:
             return self._resolve_local_binary()
-        return await asyncio.to_thread(download_binary, self.version, self.cache_dir)
+        return await asyncio.to_thread(install, self.version, self.cache_dir)
 
     def _resolve_local_binary(self) -> Path:
         """Resolve a local Tailwind binary from `bin_path` or `PATH`."""

@@ -7,6 +7,10 @@ This project follows [Semantic Versioning](https://semver.org/) and the
 
 ## [Unreleased]
 
+### Removed
+
+- Renamed the public installer helper from `download_binary` to `install`.
+
 ## [0.1.0] - 2026-04-03
 
 ### Added

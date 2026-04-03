@@ -150,7 +150,7 @@ def _ensure_executable(path: Path) -> None:
     path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def download_binary(
+def install(
     version: str,
     cache_dir: str | os.PathLike[str] | None = None,
 ) -> Path:
