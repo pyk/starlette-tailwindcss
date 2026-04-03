@@ -14,7 +14,7 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
-from starlette_tailwindcss import TailwindCSS
+from starlette_tailwindcss import tailwind
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
@@ -35,11 +35,6 @@ static_dir = Path(__file__).parent / "static"
 styles = Path(__file__).parent / "globals.css"
 
 templates = Jinja2Templates(directory=templates_dir)
-tailwind = TailwindCSS(
-    bin_path="/usr/local/bin/tailwindcss",
-    input=styles,
-    output=static_dir / "css" / "output.css",
-)
 
 
 async def homepage(request: Request) -> HTMLResponse:
@@ -60,7 +55,12 @@ routes = [
 @asynccontextmanager
 async def lifespan(app: Starlette) -> AsyncIterator[None]:
     """Run Tailwind alongside the Starlette app lifespan."""
-    async with tailwind.build(watch=app.debug):
+    async with tailwind(
+        watch=app.debug,
+        bin_path="/usr/local/bin/tailwindcss",
+        input=styles,
+        output=static_dir / "css" / "output.css",
+    ):
         yield
 
 
