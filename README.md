@@ -29,19 +29,19 @@ from starlette.applications import Starlette
 from starlette.routing import Mount
 from starlette.staticfiles import StaticFiles
 
-from starlette_tailwindcss import TailwindCSS
+from starlette_tailwindcss import tailwind
 
 static_dir = Path(__file__).parent / "static"
 
-tailwind = TailwindCSS(
-    version="v4.2.2",
-    input="src/acme/web/style.css",
-    output=static_dir / "css" / "output.css",
-)
-
 @asynccontextmanager
 async def lifespan(app: Starlette):
-    async with tailwind.build(watch=app.debug):
+    async with tailwind(
+        watch=app.debug,
+        version="v4.2.2",
+        input="src/acme/web/style.css",
+        output=static_dir / "css" / "output.{build_id}.css",
+    ) as assets:
+        app.state.tailwind = assets
         yield
 
 routes = [
@@ -58,7 +58,10 @@ app = Starlette(
 Use the generated CSS file in your templates:
 
 ```html
-<link rel="stylesheet" href="{{ url_for('static', path='css/output.css') }}" />
+<link
+    rel="stylesheet"
+    href="{{ url_for('static', path='css/' ~ request.app.state.tailwind.file_name) }}"
+/>
 ```
 
 ## How it works
@@ -71,27 +74,44 @@ Use the generated CSS file in your templates:
 
 ## Usage
 
-You can use an existing Tailwind CSS CLI binary:
+Use an existing Tailwind CSS CLI binary:
 
 ```python
-tailwind = TailwindCSS(
+async with tailwind(
+    watch=app.debug,
     bin_path="/usr/local/bin/tailwindcss",
     input="src/acme/web/style.css",
     output=static_dir / "css" / "output.css",
-)
+):
+    ...
 ```
 
 Or let the package download a release automatically:
 
 ```python
-tailwind = TailwindCSS(
+async with tailwind(
+    watch=app.debug,
     version="v4.2.2",
     input="src/acme/web/style.css",
     output=static_dir / "css" / "output.css",
-)
+):
+    ...
 ```
 
 `bin_path` and `version` are mutually exclusive.
+
+If `output` includes `{build_id}`, the startup build writes a unique file name
+on each app start. That makes cache pruning straightforward in production:
+
+```python
+async with tailwind(
+    watch=app.debug,
+    version="v4.2.2",
+    input="src/acme/web/style.css",
+    output=static_dir / "css" / "output.{build_id}.css",
+):
+    ...
+```
 
 ## Debug logging
 
