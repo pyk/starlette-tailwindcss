@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from platformdirs import user_cache_dir
 
 if TYPE_CHECKING:
-    import os
+    from os import PathLike
 
 logger = logging.getLogger(__name__)
 
@@ -152,7 +152,7 @@ def _ensure_executable(path: Path) -> None:
 
 def install(
     version: str,
-    cache_dir: str | os.PathLike[str] | None = None,
+    cache_dir: str | PathLike[str] | None = None,
 ) -> Path:
     """Download, verify, and cache the Tailwind binary for a release version."""
     logger.debug("Starting Tailwind CSS auto-install: version=%s", version)
