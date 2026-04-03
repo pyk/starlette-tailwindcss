@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import logging
-import secrets
-import string
 import sys
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -16,22 +14,13 @@ from starlette.routing import Mount, Route
 from starlette.staticfiles import StaticFiles
 from starlette.templating import Jinja2Templates
 
-from starlette_tailwindcss import TailwindCSS
+from starlette_tailwindcss import tailwind
 
 if TYPE_CHECKING:
     from collections.abc import AsyncIterator
 
     from starlette.requests import Request
     from starlette.responses import HTMLResponse
-
-_BUILD_ID_LENGTH = 8
-_BUILD_ID_ALPHABET = string.ascii_letters
-
-
-def generate_build_id(length: int = _BUILD_ID_LENGTH) -> str:
-    """Generate a short random identifier for cache-busting CSS filenames."""
-    return "".join(secrets.choice(_BUILD_ID_ALPHABET) for _ in range(length))
-
 
 # Enable debug logging to stderr
 logging.basicConfig(
@@ -50,17 +39,7 @@ templates = Jinja2Templates(directory=templates_dir)
 
 async def homepage(request: Request) -> HTMLResponse:
     """Homepage handler."""
-    return templates.TemplateResponse(
-        request,
-        "index.html",
-        context={
-            "css_href": request.url_for(
-                "static",
-                path=f"css/output.{request.app.state.build_id}.css",
-            ),
-            "css_path": f"/static/css/output.{request.app.state.build_id}.css",
-        },
-    )
+    return templates.TemplateResponse(request, "index.html")
 
 
 routes = [
@@ -76,13 +55,13 @@ routes = [
 @asynccontextmanager
 async def lifespan(app: Starlette) -> AsyncIterator[None]:
     """Run Tailwind alongside the Starlette app lifespan."""
-    app.state.build_id = generate_build_id()
-    tailwind = TailwindCSS(
+    async with tailwind(
+        watch=app.debug,
         version="v4.2.2",
         input=styles,
-        output=static_dir / "css" / f"output.{app.state.build_id}.css",
-    )
-    async with tailwind.build(watch=app.debug):
+        output=static_dir / "css" / "output.{build_id}.css",
+    ) as assets:
+        app.state.tailwind = assets
         yield
 
 

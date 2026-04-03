@@ -4,10 +4,15 @@
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>Starlette Tailwind CSS</title>
-        <link rel="stylesheet" href="{{ css_href }}" />
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', path='css/' ~ request.app.state.tailwind.file_name) }}"
+        />
     </head>
     <body class="min-h-screen bg-slate-950 text-slate-100">
-        <main class="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-16">
+        <main
+            class="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-16"
+        >
             <section class="demo-card w-full">
                 <p class="text-sm uppercase tracking-[0.3em] text-sky-300">
                     Build id example
@@ -17,8 +22,13 @@
                     This page uses a unique stylesheet path on every startup so
                     you can prune old assets safely in production.
                 </p>
-                <p class="mt-6 rounded-lg bg-slate-800/80 px-4 py-3 font-mono text-sm">
-                    CSS path: <span class="text-emerald-300">{{ css_path }}</span>
+                <p
+                    class="mt-6 rounded-lg bg-slate-800/80 px-4 py-3 font-mono text-sm"
+                >
+                    CSS file:
+                    <span class="text-emerald-300">
+                        {{ request.app.state.tailwind.file_name }}
+                    </span>
                 </p>
             </section>
         </main>
