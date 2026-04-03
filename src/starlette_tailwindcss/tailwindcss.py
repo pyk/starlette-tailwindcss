@@ -1,4 +1,3 @@
-# ruff: noqa: A002
 """Tailwind CSS CLI integration for Starlette applications."""
 
 from __future__ import annotations
@@ -6,21 +5,58 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import secrets
 import shutil
+import string
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING, overload
 
 from starlette_tailwindcss.installer import install
 
 if TYPE_CHECKING:
-    import os
     from collections.abc import AsyncIterator
+    from os import PathLike
 
 logger = logging.getLogger(__name__)
 
+_BUILD_ID_ALPHABET = string.ascii_letters
+_BUILD_ID_LENGTH = 8
 _DEFAULT_BIN_NAME = "tailwindcss"
 _PROCESS_STOP_TIMEOUT = 5.0
+
+
+@dataclass(frozen=True, slots=True)
+class Assets:
+    """Resolved Tailwind asset paths for the current startup."""
+
+    build_id: str | None
+    output_path: Path
+    css_href: str | None
+
+
+def _generate_build_id(length: int = _BUILD_ID_LENGTH) -> str:
+    """Generate a short build id for cache-busting output filenames."""
+    return "".join(secrets.choice(_BUILD_ID_ALPHABET) for _ in range(length))
+
+
+def _resolve_css_href(
+    output_path: Path,
+    static_root: Path | None,
+    static_url: str,
+) -> str | None:
+    """Resolve the public stylesheet href when the output is under static root."""
+    if static_root is None:
+        return None
+
+    relative_path = output_path.relative_to(static_root)
+    prefix = static_url.rstrip("/")
+    if prefix == "":
+        prefix = "/"
+    if prefix == "/":
+        return f"/{relative_path.as_posix()}"
+    return f"{prefix}/{relative_path.as_posix()}"
 
 
 class TailwindCSS:
@@ -30,9 +66,22 @@ class TailwindCSS:
     def __init__(
         self,
         *,
-        bin_path: str | os.PathLike[str],
-        input: str | os.PathLike[str],
-        output: str | os.PathLike[str],
+        input: str | PathLike[str],
+        output: str | PathLike[str],
+        cache_dir: str | PathLike[str] | None = None,
+        static_root: str | PathLike[str] | None = None,
+        static_url: str = "/static",
+    ) -> None: ...
+
+    @overload
+    def __init__(
+        self,
+        *,
+        bin_path: str | PathLike[str],
+        input: str | PathLike[str],
+        output: str | PathLike[str],
+        static_root: str | PathLike[str] | None = None,
+        static_url: str = "/static",
     ) -> None: ...
 
     @overload
@@ -40,19 +89,23 @@ class TailwindCSS:
         self,
         *,
         version: str,
-        input: str | os.PathLike[str],
-        output: str | os.PathLike[str],
-        cache_dir: str | os.PathLike[str] | None = None,
+        input: str | PathLike[str],
+        output: str | PathLike[str],
+        cache_dir: str | PathLike[str] | None = None,
+        static_root: str | PathLike[str] | None = None,
+        static_url: str = "/static",
     ) -> None: ...
 
     def __init__(
         self,
         *,
-        input: str | os.PathLike[str],
-        output: str | os.PathLike[str],
-        bin_path: str | os.PathLike[str] | None = None,
+        input: str | PathLike[str],
+        output: str | PathLike[str],
+        bin_path: str | PathLike[str] | None = None,
         version: str | None = None,
-        cache_dir: str | os.PathLike[str] | None = None,
+        cache_dir: str | PathLike[str] | None = None,
+        static_root: str | PathLike[str] | None = None,
+        static_url: str = "/static",
     ) -> None:
         """Create a Tailwind CSS integration configuration."""
         if bin_path is not None and version is not None:
@@ -66,43 +119,51 @@ class TailwindCSS:
             raise ValueError(msg)
 
         self.input = Path(input)
-        self.output = Path(output)
+        self.output_template = Path(output)
         self.bin_path = Path(bin_path).expanduser() if bin_path is not None else None
         self.version = version
         self.cache_dir = Path(cache_dir).expanduser() if cache_dir is not None else None
+        self.static_root = (
+            Path(static_root).expanduser() if static_root is not None else None
+        )
+        self.static_url = static_url
 
     @asynccontextmanager
-    async def build(self, *, watch: bool = False) -> AsyncIterator[None]:
+    async def build(self, *, watch: bool = False) -> AsyncIterator[Assets]:
         """Build Tailwind CSS once and optionally watch for changes."""
+        assets = self._resolve_assets()
         binary = await self._resolve_binary()
-        await self._build_once(binary)
+        await self._build_once(binary, assets.output_path)
 
         watch_process: asyncio.subprocess.Process | None = None
         stream_tasks: list[asyncio.Task[None]] = []
         if watch:
-            watch_process, stream_tasks = await self._spawn_watch(binary)
+            watch_process, stream_tasks = await self._spawn_watch(
+                binary,
+                assets.output_path,
+            )
 
         try:
-            yield
+            yield assets
         finally:
             await self._shutdown_watch(watch_process, stream_tasks)
 
-    async def _build_once(self, binary: Path) -> None:
+    async def _build_once(self, binary: Path, output: Path) -> None:
         """Run a one-time Tailwind build."""
         logger.info(
             "Building Tailwind CSS output: %s build -i %s -o %s",
             binary,
             self.input,
-            self.output,
+            output,
         )
-        self.output.parent.mkdir(parents=True, exist_ok=True)
+        output.parent.mkdir(parents=True, exist_ok=True)
         process = await asyncio.create_subprocess_exec(
             str(binary),
             "build",
             "-i",
             str(self.input),
             "-o",
-            str(self.output),
+            str(output),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -124,21 +185,22 @@ class TailwindCSS:
     async def _spawn_watch(
         self,
         binary: Path,
+        output: Path,
     ) -> tuple[asyncio.subprocess.Process, list[asyncio.Task[None]]]:
         """Start the Tailwind watch process and stream its output."""
         logger.info(
             "Spawning Tailwind CSS CLI in background: %s -i %s -o %s --watch",
             binary,
             self.input,
-            self.output,
+            output,
         )
-        self.output.parent.mkdir(parents=True, exist_ok=True)
+        output.parent.mkdir(parents=True, exist_ok=True)
         process = await asyncio.create_subprocess_exec(
             str(binary),
             "-i",
             str(self.input),
             "-o",
-            str(self.output),
+            str(output),
             "--watch",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
@@ -198,6 +260,20 @@ class TailwindCSS:
         if self.version is None:
             return self._resolve_local_binary()
         return await asyncio.to_thread(install, self.version, self.cache_dir)
+
+    def _resolve_assets(self) -> Assets:
+        """Resolve the build id, output path, and public stylesheet href."""
+        output_text = str(self.output_template)
+        build_id = _generate_build_id() if "{build_id}" in output_text else None
+        if build_id is not None:
+            output_text = output_text.replace("{build_id}", build_id)
+        output_path = Path(output_text).expanduser()
+        css_href = _resolve_css_href(output_path, self.static_root, self.static_url)
+        return Assets(
+            build_id=build_id,
+            output_path=output_path,
+            css_href=css_href,
+        )
 
     def _resolve_local_binary(self) -> Path:
         """Resolve a local Tailwind binary from `bin_path` or `PATH`."""
