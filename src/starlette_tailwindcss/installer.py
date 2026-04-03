@@ -11,8 +11,12 @@ import urllib.error
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from platformdirs import user_cache_dir
+
+if TYPE_CHECKING:
+    import os
 
 _APP_NAME = "starlette-tailwindcss"
 _RELEASE_BASE_URL = "https://github.com/tailwindlabs/tailwindcss/releases/download"
@@ -126,10 +130,17 @@ def _ensure_executable(path: Path) -> None:
     path.chmod(mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
 
 
-def download_binary(version: str) -> Path:
+def download_binary(
+    version: str,
+    cache_dir: str | os.PathLike[str] | None = None,
+) -> Path:
     """Download, verify, and cache the Tailwind binary for a release version."""
     target = _target_platform()
-    cache_root = Path(user_cache_dir(_APP_NAME))
+    cache_root = (
+        Path(user_cache_dir(_APP_NAME))
+        if cache_dir is None
+        else Path(cache_dir).expanduser()
+    )
     binary_path = cache_root / version / target.cache_name / target.binary_name
     if binary_path.exists():
         _ensure_executable(binary_path)

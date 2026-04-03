@@ -25,10 +25,16 @@ def test_auto_install_checksum_manifest_not_found(
     def raise_http_404(url: str) -> bytes:
         raise HTTPError(url, 404, "Not Found", hdrs=Message(), fp=None)
 
+    def fail_user_cache_dir(_app_name: str) -> str:
+        msg = "user_cache_dir should not be called"
+        raise AssertionError(msg)
+
     monkeypatch.setattr(installer, "_read_url", raise_http_404)
+    monkeypatch.setattr(installer, "user_cache_dir", fail_user_cache_dir)
 
     tailwind = TailwindCSS(
         version="random-version",
+        cache_dir=tmp_path,
         input=tmp_path / "input.css",
         output=tmp_path / "output.css",
     )

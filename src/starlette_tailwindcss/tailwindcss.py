@@ -42,6 +42,7 @@ class TailwindCSS:
         version: str,
         input: str | os.PathLike[str],
         output: str | os.PathLike[str],
+        cache_dir: str | os.PathLike[str] | None = None,
     ) -> None: ...
 
     def __init__(
@@ -51,16 +52,24 @@ class TailwindCSS:
         output: str | os.PathLike[str],
         bin_path: str | os.PathLike[str] | None = None,
         version: str | None = None,
+        cache_dir: str | os.PathLike[str] | None = None,
     ) -> None:
         """Create a Tailwind CSS integration configuration."""
         if bin_path is not None and version is not None:
             msg = "`bin_path` and `version` are mutually exclusive"
+            raise ValueError(msg)
+        if cache_dir is not None and version is None:
+            msg = "`cache_dir` requires `version`"
+            raise ValueError(msg)
+        if cache_dir is not None and bin_path is not None:
+            msg = "`cache_dir` is only valid with `version`"
             raise ValueError(msg)
 
         self.input = Path(input)
         self.output = Path(output)
         self.bin_path = Path(bin_path).expanduser() if bin_path is not None else None
         self.version = version
+        self.cache_dir = Path(cache_dir).expanduser() if cache_dir is not None else None
 
     @asynccontextmanager
     async def build(self, *, watch: bool = False) -> AsyncIterator[None]:
@@ -188,7 +197,7 @@ class TailwindCSS:
         """Return the binary to execute, resolving local or downloaded input."""
         if self.version is None:
             return self._resolve_local_binary()
-        return await asyncio.to_thread(download_binary, self.version)
+        return await asyncio.to_thread(download_binary, self.version, self.cache_dir)
 
     def _resolve_local_binary(self) -> Path:
         """Resolve a local Tailwind binary from `bin_path` or `PATH`."""
