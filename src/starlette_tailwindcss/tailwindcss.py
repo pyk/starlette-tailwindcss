@@ -29,34 +29,15 @@ _PROCESS_STOP_TIMEOUT = 5.0
 
 @dataclass(frozen=True, slots=True)
 class Assets:
-    """Resolved Tailwind asset paths for the current startup."""
+    """Resolved Tailwind asset metadata for the current startup."""
 
     build_id: str | None
-    output_path: Path
-    css_href: str | None
+    file_name: str
 
 
 def _generate_build_id(length: int = _BUILD_ID_LENGTH) -> str:
     """Generate a short build id for cache-busting output filenames."""
     return "".join(secrets.choice(_BUILD_ID_ALPHABET) for _ in range(length))
-
-
-def _resolve_css_href(
-    output_path: Path,
-    static_root: Path | None,
-    static_url: str,
-) -> str | None:
-    """Resolve the public stylesheet href when the output is under static root."""
-    if static_root is None:
-        return None
-
-    relative_path = output_path.relative_to(static_root)
-    prefix = static_url.rstrip("/")
-    if prefix == "":
-        prefix = "/"
-    if prefix == "/":
-        return f"/{relative_path.as_posix()}"
-    return f"{prefix}/{relative_path.as_posix()}"
 
 
 class TailwindCSS:
@@ -68,9 +49,6 @@ class TailwindCSS:
         *,
         input: str | PathLike[str],
         output: str | PathLike[str],
-        cache_dir: str | PathLike[str] | None = None,
-        static_root: str | PathLike[str] | None = None,
-        static_url: str = "/static",
     ) -> None: ...
 
     @overload
@@ -80,8 +58,6 @@ class TailwindCSS:
         bin_path: str | PathLike[str],
         input: str | PathLike[str],
         output: str | PathLike[str],
-        static_root: str | PathLike[str] | None = None,
-        static_url: str = "/static",
     ) -> None: ...
 
     @overload
@@ -92,8 +68,6 @@ class TailwindCSS:
         input: str | PathLike[str],
         output: str | PathLike[str],
         cache_dir: str | PathLike[str] | None = None,
-        static_root: str | PathLike[str] | None = None,
-        static_url: str = "/static",
     ) -> None: ...
 
     def __init__(
@@ -104,8 +78,6 @@ class TailwindCSS:
         bin_path: str | PathLike[str] | None = None,
         version: str | None = None,
         cache_dir: str | PathLike[str] | None = None,
-        static_root: str | PathLike[str] | None = None,
-        static_url: str = "/static",
     ) -> None:
         """Create a Tailwind CSS integration configuration."""
         if bin_path is not None and version is not None:
@@ -123,24 +95,20 @@ class TailwindCSS:
         self.bin_path = Path(bin_path).expanduser() if bin_path is not None else None
         self.version = version
         self.cache_dir = Path(cache_dir).expanduser() if cache_dir is not None else None
-        self.static_root = (
-            Path(static_root).expanduser() if static_root is not None else None
-        )
-        self.static_url = static_url
 
     @asynccontextmanager
     async def build(self, *, watch: bool = False) -> AsyncIterator[Assets]:
         """Build Tailwind CSS once and optionally watch for changes."""
-        assets = self._resolve_assets()
+        assets, output_path = self._resolve_assets()
         binary = await self._resolve_binary()
-        await self._build_once(binary, assets.output_path)
+        await self._build_once(binary, output_path)
 
         watch_process: asyncio.subprocess.Process | None = None
         stream_tasks: list[asyncio.Task[None]] = []
         if watch:
             watch_process, stream_tasks = await self._spawn_watch(
                 binary,
-                assets.output_path,
+                output_path,
             )
 
         try:
@@ -261,19 +229,15 @@ class TailwindCSS:
             return self._resolve_local_binary()
         return await asyncio.to_thread(install, self.version, self.cache_dir)
 
-    def _resolve_assets(self) -> Assets:
-        """Resolve the build id, output path, and public stylesheet href."""
+    def _resolve_assets(self) -> tuple[Assets, Path]:
+        """Resolve the build id, output path, and file name."""
         output_text = str(self.output_template)
         build_id = _generate_build_id() if "{build_id}" in output_text else None
         if build_id is not None:
             output_text = output_text.replace("{build_id}", build_id)
         output_path = Path(output_text).expanduser()
-        css_href = _resolve_css_href(output_path, self.static_root, self.static_url)
-        return Assets(
-            build_id=build_id,
-            output_path=output_path,
-            css_href=css_href,
-        )
+        assets = Assets(build_id=build_id, file_name=output_path.name)
+        return assets, output_path
 
     def _resolve_local_binary(self) -> Path:
         """Resolve a local Tailwind binary from `bin_path` or `PATH`."""

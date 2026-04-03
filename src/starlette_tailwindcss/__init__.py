@@ -21,8 +21,6 @@ def tailwind(
     input: str | PathLike[str],
     output: str | PathLike[str],
     bin_path: str | PathLike[str],
-    static_root: str | PathLike[str] | None = None,
-    static_url: str = "/static",
 ) -> AbstractAsyncContextManager[Assets]: ...
 
 
@@ -34,8 +32,6 @@ def tailwind(
     output: str | PathLike[str],
     version: str,
     cache_dir: str | PathLike[str] | None = None,
-    static_root: str | PathLike[str] | None = None,
-    static_url: str = "/static",
 ) -> AbstractAsyncContextManager[Assets]: ...
 
 
@@ -45,8 +41,6 @@ def tailwind(
     watch: bool = False,
     input: str | PathLike[str],
     output: str | PathLike[str],
-    static_root: str | PathLike[str] | None = None,
-    static_url: str = "/static",
 ) -> AbstractAsyncContextManager[Assets]: ...
 
 
@@ -58,8 +52,6 @@ def tailwind(
     bin_path: str | PathLike[str] | None = None,
     version: str | None = None,
     cache_dir: str | PathLike[str] | None = None,
-    static_root: str | PathLike[str] | None = None,
-    static_url: str = "/static",
 ) -> AbstractAsyncContextManager[Assets]:
     """Build Tailwind CSS on demand and yield resolved asset metadata."""
     if bin_path is not None and version is not None:
@@ -77,23 +69,17 @@ def tailwind(
             output=output,
             version=version,
             cache_dir=cache_dir,
-            static_root=static_root,
-            static_url=static_url,
         )
     elif bin_path is not None:
         runner = TailwindCSS(
             input=input,
             output=output,
             bin_path=bin_path,
-            static_root=static_root,
-            static_url=static_url,
         )
     else:
         runner = TailwindCSS(
             input=input,
             output=output,
-            static_root=static_root,
-            static_url=static_url,
         )
 
     @asynccontextmanager
