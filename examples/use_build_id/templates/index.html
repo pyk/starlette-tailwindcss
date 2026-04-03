@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Starlette Tailwind CSS</title>
+        <link rel="stylesheet" href="{{ css_href }}" />
+    </head>
+    <body class="min-h-screen bg-slate-950 text-slate-100">
+        <main class="mx-auto flex min-h-screen max-w-3xl items-center px-6 py-16">
+            <section class="demo-card w-full">
+                <p class="text-sm uppercase tracking-[0.3em] text-sky-300">
+                    Build id example
+                </p>
+                <h1 class="mt-4 text-4xl font-bold">Starlette Tailwind CSS</h1>
+                <p class="mt-4 max-w-xl text-slate-300">
+                    This page uses a unique stylesheet path on every startup so
+                    you can prune old assets safely in production.
+                </p>
+                <p class="mt-6 rounded-lg bg-slate-800/80 px-4 py-3 font-mono text-sm">
+                    CSS path: <span class="text-emerald-300">{{ css_path }}</span>
+                </p>
+            </section>
+        </main>
+    </body>
+</html>
