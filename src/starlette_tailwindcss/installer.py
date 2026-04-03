@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import platform
-import shutil
 import stat
 import tempfile
 import urllib.error
@@ -18,8 +18,11 @@ from platformdirs import user_cache_dir
 if TYPE_CHECKING:
     import os
 
+logger = logging.getLogger(__name__)
+
 _APP_NAME = "starlette-tailwindcss"
 _RELEASE_BASE_URL = "https://github.com/tailwindlabs/tailwindcss/releases/download"
+_PROGRESS_MAX = 100
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,7 +110,24 @@ def _download_to_path(url: str, path: Path) -> None:
             suffix=".tmp",
         ) as file,
     ):
-        shutil.copyfileobj(response, file)
+        total_bytes_raw = response.headers.get("Content-Length")
+        total_bytes = int(total_bytes_raw) if total_bytes_raw is not None else None
+        downloaded = 0
+        next_progress = 25
+        if total_bytes is not None:
+            logger.debug("Installing Tailwind CSS binary: 0%%")
+        while chunk := response.read(1024 * 1024):
+            file.write(chunk)
+            if total_bytes is None:
+                continue
+            downloaded += len(chunk)
+            percent = (downloaded * _PROGRESS_MAX) // total_bytes
+            while next_progress <= _PROGRESS_MAX and percent >= next_progress:
+                logger.debug(
+                    "Installing Tailwind CSS binary: %s%%",
+                    next_progress,
+                )
+                next_progress += 25
         temp_path = Path(file.name)
     temp_path.replace(path)
 
@@ -135,6 +155,7 @@ def download_binary(
     cache_dir: str | os.PathLike[str] | None = None,
 ) -> Path:
     """Download, verify, and cache the Tailwind binary for a release version."""
+    logger.debug("Starting Tailwind CSS auto-install: version=%s", version)
     target = _target_platform()
     cache_root = (
         Path(user_cache_dir(_APP_NAME))
@@ -144,9 +165,11 @@ def download_binary(
     binary_path = cache_root / version / target.cache_name / target.binary_name
     if binary_path.exists():
         _ensure_executable(binary_path)
+        logger.debug("Using cached Tailwind CSS binary: %s", binary_path)
         return binary_path
 
     release_base = f"{_RELEASE_BASE_URL}/{version}"
+    logger.debug("Tailwind CSS binary cache miss: %s", binary_path)
     try:
         manifest = _parse_checksum_manifest(
             _read_url(f"{release_base}/sha256sums.txt").decode("utf-8"),
@@ -175,4 +198,5 @@ def download_binary(
         raise RuntimeError(msg)
 
     _ensure_executable(binary_path)
+    logger.debug("Finished Tailwind CSS auto-install: %s", binary_path)
     return binary_path
