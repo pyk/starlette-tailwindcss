@@ -36,7 +36,7 @@ styles = Path(__file__).parent / "globals.css"
 
 templates = Jinja2Templates(directory=templates_dir)
 tailwind = TailwindCSS(
-    version="random-version",
+    version="v4.2.2",
     input=styles,
     output=static_dir / "css" / "output.css",
 )
