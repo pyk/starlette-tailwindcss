@@ -151,7 +151,7 @@ class TailwindCSS:
     async def _build_once(self, binary: Path, output: Path) -> None:
         """Run a one-time Tailwind build."""
         logger.info(
-            "Building Tailwind CSS output: %s build -i %s -o %s",
+            "run build: %s build -i %s -o %s",
             binary,
             self.input,
             output,
@@ -189,7 +189,7 @@ class TailwindCSS:
     ) -> tuple[asyncio.subprocess.Process, list[asyncio.Task[None]]]:
         """Start the Tailwind watch process and stream its output."""
         logger.info(
-            "Spawning Tailwind CSS CLI in background: %s -i %s -o %s --watch",
+            "start watch: %s -i %s -o %s --watch",
             binary,
             self.input,
             output,
@@ -225,7 +225,7 @@ class TailwindCSS:
         if process is None:
             return
 
-        logger.info("Killing spawned Tailwind CSS CLI process: pid=%s", process.pid)
+        logger.info("stop watch pid=%s", process.pid)
         if process.returncode is None:
             process.terminate()
             try:

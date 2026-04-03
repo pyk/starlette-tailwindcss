@@ -115,7 +115,7 @@ def _download_to_path(url: str, path: Path) -> None:
         downloaded = 0
         next_progress = 25
         if total_bytes is not None:
-            logger.debug("Installing Tailwind CSS binary: 0%%")
+            logger.debug("install binary: 0%%")
         while chunk := response.read(1024 * 1024):
             file.write(chunk)
             if total_bytes is None:
@@ -124,7 +124,7 @@ def _download_to_path(url: str, path: Path) -> None:
             percent = (downloaded * _PROGRESS_MAX) // total_bytes
             while next_progress <= _PROGRESS_MAX and percent >= next_progress:
                 logger.debug(
-                    "Installing Tailwind CSS binary: %s%%",
+                    "install binary: %s%%",
                     next_progress,
                 )
                 next_progress += 25
@@ -155,7 +155,7 @@ def install(
     cache_dir: str | PathLike[str] | None = None,
 ) -> Path:
     """Download, verify, and cache the Tailwind binary for a release version."""
-    logger.debug("Starting Tailwind CSS auto-install: version=%s", version)
+    logger.debug("install start version=%s", version)
     target = _target_platform()
     cache_root = (
         Path(user_cache_dir(_APP_NAME))
@@ -165,38 +165,38 @@ def install(
     binary_path = cache_root / version / target.cache_name / target.binary_name
     if binary_path.exists():
         _ensure_executable(binary_path)
-        logger.debug("Using cached Tailwind CSS binary: %s", binary_path)
+        logger.debug("install cached: %s", binary_path)
         return binary_path
 
     release_base = f"{_RELEASE_BASE_URL}/{version}"
-    logger.debug("Tailwind CSS binary cache miss: %s", binary_path)
+    logger.debug("install cache miss: %s", binary_path)
     try:
         manifest = _parse_checksum_manifest(
             _read_url(f"{release_base}/sha256sums.txt").decode("utf-8"),
         )
     except urllib.error.URLError as exc:
-        msg = f"Failed to download Tailwind CSS checksum manifest for {version}"
+        msg = f"install manifest download failed: {version}"
         raise RuntimeError(msg) from exc
     expected_checksum = manifest.get(target.asset_name)
     if expected_checksum is None:
-        msg = f"Checksum for {target.asset_name} was not found in the release manifest"
+        msg = f"install manifest missing checksum: {target.asset_name}"
         raise RuntimeError(msg)
 
     asset_url = f"{release_base}/{target.asset_name}"
     try:
         _download_to_path(asset_url, binary_path)
     except urllib.error.URLError as exc:
-        msg = f"Failed to download Tailwind CSS binary for {version}"
+        msg = f"install binary download failed: {version}"
         raise RuntimeError(msg) from exc
     actual_checksum = _sha256(binary_path)
     if actual_checksum != expected_checksum:
         binary_path.unlink(missing_ok=True)
         msg = (
-            "Downloaded Tailwind CSS binary checksum mismatch: "
+            "install checksum mismatch: "
             f"expected {expected_checksum}, got {actual_checksum}"
         )
         raise RuntimeError(msg)
 
     _ensure_executable(binary_path)
-    logger.debug("Finished Tailwind CSS auto-install: %s", binary_path)
+    logger.debug("install done: %s", binary_path)
     return binary_path
