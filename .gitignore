@@ -15,3 +15,6 @@ wheels/
 
 # External repos
 external
+
+# Changelog
+keepachangelog-v1.1.md
