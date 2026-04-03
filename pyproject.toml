@@ -41,14 +41,17 @@ ignore = [
     "D203",
     # Trailing comma rule conflict with formatter
     "COM812",
+    # Allow to use `input` as arg
+    "A002",
+    # Allow to use arg count
+    "PLR0913"
 ]
 exclude = ["external/**"]
 
 [tool.ruff.lint.per-file-ignores]
+# Allow assert statement on test files
 "tests/**/*.py" = ["S101"]
 
-[tool.ruff.lint.pylint]
-max-args = 5
 
 # pytest - settings
 [tool.pytest.ini_options]
