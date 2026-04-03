@@ -1,7 +1,7 @@
 [project]
 name = "starlette-tailwindcss"
-version = "0.1.0"
-description = "TailwindCSS integration for Starlette apps"
+version = "0.2.0"
+description = "Tailwind CSS integration for Starlette apps"
 readme = "README.md"
 authors = [
     { name = "pyk", email = "2213646+pyk@users.noreply.github.com" }
