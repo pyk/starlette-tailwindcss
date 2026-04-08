@@ -243,6 +243,18 @@ wheels = [
 ]
 
 [[package]]
+name = "starlette-hot-reload"
+version = "0.2.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "starlette" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6b/50/e767755a15c0163ec9888eaeebd0792f0d08b5887bbb93f5c1bdab8657c7/starlette_hot_reload-0.2.1.tar.gz", hash = "sha256:c3bc5505bd673b8fa0298b853bd380bfc8fe87afb66c5bac7cbb4aee2d36697e", size = 8623, upload-time = "2026-04-06T07:03:51.436Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/17/7a661b4068d357856e294ab85d06e3e223380a0f43a22a166aeb82e3996d/starlette_hot_reload-0.2.1-py3-none-any.whl", hash = "sha256:e9eeba03b59e240e553cc059d8d5ed981cc0f62a453812f4cb67ec38dee71ff6", size = 11166, upload-time = "2026-04-06T07:03:50.41Z" },
+]
+
+[[package]]
 name = "starlette-tailwindcss"
 version = "0.2.0"
 source = { editable = "." }
@@ -258,6 +270,7 @@ dev = [
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
+    { name = "starlette-hot-reload" },
     { name = "ty" },
     { name = "uvicorn" },
 ]
@@ -275,6 +288,7 @@ dev = [
     { name = "pytest", specifier = ">=9.0.2" },
     { name = "pytest-asyncio", specifier = ">=1.3.0" },
     { name = "ruff", specifier = ">=0.15.8" },
+    { name = "starlette-hot-reload", specifier = ">=0.2.1" },
     { name = "ty", specifier = ">=0.0.27" },
     { name = "uvicorn", specifier = ">=0.42.0" },
 ]

@@ -44,6 +44,7 @@ dev = [
     "pytest>=9.0.2",
     "pytest-asyncio>=1.3.0",
     "ruff>=0.15.8",
+    "starlette-hot-reload>=0.2.1",
     "ty>=0.0.27",
     "uvicorn>=0.42.0",
 ]
