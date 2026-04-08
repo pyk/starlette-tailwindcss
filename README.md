@@ -1,4 +1,12 @@
-# Starlette Tailwind CSS
+<h3 align="center">starlette-tailwindcss</h3>
+
+<p align="center">
+  Tailwind CSS for Starlette
+<p>
+
+<p align="center">
+<a href="https://pypi.org/project/starlette-tailwindcss/"><img alt="PyPI - Version" src="https://img.shields.io/pypi/v/starlette-tailwindcss?style=flat&labelColor=%23000000&color=%23000000"></a> <a href="https://pypi.org/project/starlette-tailwindcss/"><img alt="PyPI - Python Version" src="https://img.shields.io/pypi/pyversions/starlette-tailwindcss?style=flat&labelColor=000000&color=000000"></a> <a href="https://pypi.org/project/starlette-tailwindcss/"><img alt="PyPI - License" src="https://img.shields.io/pypi/l/starlette-tailwindcss?labelColor=000&color=000"></a>
+</p>
 
 `starlette-tailwindcss` is a lightweight utility for
 [Starlette](https://starlette.dev/) that builds Tailwind CSS on startup with
@@ -9,9 +17,8 @@ It integrates directly with your Starlette app and provides:
 - Builds CSS on startup.
 - Automatically rebuilds on changes in watch mode.
 - Optional `tailwindcss` CLI binary auto-installation.
-- Fully typed, following Starlette patterns.
 
-## Installation
+### Installation
 
 ```shell
 uv add starlette-tailwindcss
@@ -19,7 +26,7 @@ uv add starlette-tailwindcss
 pip install starlette-tailwindcss
 ```
 
-## Example
+### Example
 
 ```python
 from contextlib import asynccontextmanager
@@ -64,7 +71,7 @@ Use the generated CSS file in your templates:
 />
 ```
 
-## How it works
+### How it works
 
 `starlette-tailwindcss` runs the Tailwind CLI alongside your app.
 
@@ -72,7 +79,7 @@ Use the generated CSS file in your templates:
 - Rebuilds CSS in watch mode during development.
 - Stops the process when the app shuts down.
 
-## Usage
+### Usage
 
 Use an existing Tailwind CSS CLI binary:
 
@@ -113,7 +120,7 @@ async with tailwind(
     ...
 ```
 
-## Debug logging
+### Debug logging
 
 To see Tailwind CSS CLI output:
 
@@ -123,6 +130,6 @@ import logging
 logging.basicConfig(level=logging.INFO)
 ```
 
-## License
+### License
 
 MIT
