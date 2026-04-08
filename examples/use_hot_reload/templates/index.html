@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Starlette Hot Reload + Tailwind CSS</title>
+        <link
+            rel="stylesheet"
+            href="{{ url_for('static', path='css/' ~ request.app.state.tailwind.file_name) }}"
+        />
+    </head>
+    <body class="min-h-screen bg-slate-950 text-slate-100">
+        <main
+            class="mx-auto flex min-h-screen max-w-4xl items-center px-6 py-16"
+        >
+            <section class="demo-card w-full">
+                <p class="text-sm uppercase tracking-[0.3em] text-sky-300">
+                    Hot reload with Tailwind
+                </p>
+                <h1 class="mt-4 text-4xl font-bold">
+                    Starlette Hot Reload + Tailwind CSS
+                </h1>
+                <p class="mt-4 max-w-2xl text-slate-300">
+                    Edit this template or <code>globals.css</code> and the page
+                    reloads automatically while Tailwind rebuilds the stylesheet
+                    in the background.
+                </p>
+                <p
+                    class="mt-6 rounded-lg bg-slate-800/80 px-4 py-3 font-mono text-sm"
+                >
+                    CSS file:
+                    <span class="text-emerald-300">
+                        {{ request.app.state.tailwind.file_name }}
+                    </span>
+                </p>
+            </section>
+        </main>
+    </body>
+</html>
