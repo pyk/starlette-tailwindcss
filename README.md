@@ -109,6 +109,25 @@ async with tailwind(
 
 `bin_path` and `version` are mutually exclusive.
 
+For a one-time build step, use `build(...)` instead of `tailwind(...)`:
+
+```python
+import asyncio
+from pathlib import Path
+
+from starlette_tailwindcss import build
+
+static_dir = Path(__file__).parent / "static"
+
+assets = asyncio.run(
+    build(
+        version="v4.2.2",
+        input="src/acme/web/style.css",
+        output=static_dir / "css" / "output.css",
+    ),
+)
+```
+
 If `output` includes `{build_id}`, the startup build writes a unique file name
 on each app start. That makes cache pruning straightforward in production:
 
