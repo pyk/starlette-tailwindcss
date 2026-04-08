@@ -7,6 +7,20 @@ This project follows [Semantic Versioning](https://semver.org/) and the
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-08
+
+### Added
+
+- Public `build(...)` async helper for one-shot Tailwind CSS builds in scripts
+  and packaging workflows.
+- Example app showing how to compose `starlette-tailwindcss` with
+  `starlette-hot-reload`.
+
+### Fixed
+
+- Tailwind watch shutdown now completes correctly when the package is used
+  inside a composed Starlette lifespan.
+
 ## [0.2.0] - 2026-04-03
 
 ### Added
@@ -50,6 +64,7 @@ This project follows [Semantic Versioning](https://semver.org/) and the
 - Integration tests and example app coverage for local binary resolution,
   auto-install failure handling, cache reuse, and installer logging.
 
-[Unreleased]: https://github.com/pyk/starlette-tailwindcss/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/pyk/starlette-tailwindcss/compare/v0.1.0...v0.2.0
+[Unreleased]: https://github.com/pyk/starlette-tailwindcss/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/pyk/starlette-tailwindcss/releases/tag/v0.3.0
+[0.2.0]: https://github.com/pyk/starlette-tailwindcss/releases/tag/v0.2.0
 [0.1.0]: https://github.com/pyk/starlette-tailwindcss/releases/tag/v0.1.0
