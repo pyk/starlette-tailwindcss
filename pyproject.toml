@@ -6,11 +6,32 @@ readme = "README.md"
 authors = [
     { name = "pyk", email = "2213646+pyk@users.noreply.github.com" }
 ]
+maintainers = [
+    { name = "pyk", email = "2213646+pyk@users.noreply.github.com" }
+]
+license = "MIT"
+license-files = ["LICENSE.md"]
 requires-python = ">=3.14"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Web Environment",
+    "Framework :: Starlette",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Internet :: WWW/HTTP",
+]
 dependencies = [
     "platformdirs>=4.9.4",
     "starlette>=1.0.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pyk/starlette-tailwindcss"
+Documentation = "https://github.com/pyk/starlette-tailwindcss/blob/main/README.md"
+Changelog = "https://github.com/pyk/starlette-tailwindcss/blob/main/CHANGELOG.md"
+Funding = "https://github.com/sponsors/pyk"
+Source = "https://github.com/pyk/starlette-tailwindcss"
 
 [build-system]
 requires = ["uv_build>=0.11.0,<0.12.0"]
