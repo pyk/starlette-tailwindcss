@@ -114,7 +114,9 @@ class TailwindCSS:
         try:
             yield assets
         finally:
-            await self._shutdown_watch(watch_process, stream_tasks)
+            # Shutdown can race with external signal handlers during app teardown.
+            # Shield cleanup so the watch process is always terminated.
+            await asyncio.shield(self._shutdown_watch(watch_process, stream_tasks))
 
     async def _build_once(self, binary: Path, output: Path) -> None:
         """Run a one-time Tailwind build."""
